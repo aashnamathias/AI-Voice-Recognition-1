@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Streamlit app for AI Voice Recognition (Improved)"""
+"""Streamlit app for AI Voice Recognition (Multilingual with Basic Punctuation)"""
 
 import streamlit as st
 from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
@@ -10,17 +10,49 @@ import soundfile as sf
 import numpy as np
 import noisereduce as nr
 
-st.title("🎙️ AI Voice Recognition (Improved)")
-st.markdown("Due to limitations in the deployment environment, the punctuation applied to the transcription is a basic, rule-based segmentation and capitalization. It may not accurately reflect natural sentence breaks.")
+st.title("🎙️ AI Voice Recognition (Multilingual)")
+st.markdown("This app supports multilingual voice recognition. Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization.")
+
+# Language selection
+language = st.selectbox(
+    "Select the language of the audio:",
+    ["English", "French", "German", "Spanish", "Chinese", "Russian", "Japanese", "Hindi", "Other"]
+)
 
 # Load Wav2Vec2 models
 @st.cache_resource
-def load_asr_model():
-    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h-lv60-self", use_auth_token=False)
-    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h-lv60-self", use_auth_token=False)
-    return processor, model
+def load_asr_model(language):
+    model_name = "facebook/wav2vec2-large-960h-lv60-self" # Default English model
+    processor_name = "facebook/wav2vec2-large-960h-lv60-self"
 
-processor, model = load_asr_model()
+    if language == "French":
+        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
+        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
+    elif language == "German":
+        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
+        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
+    elif language == "Spanish":
+        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
+        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
+    elif language == "Chinese":
+        model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese"
+        processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese"
+    elif language == "Russian":
+        model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-russian"
+        processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-russian"
+    elif language == "Japanese":
+        model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-japanese"
+        processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-japanese"
+    elif language == "Hindi":
+        model_name = "rahulbhalgat/wav2vec2-large-xlsr-hindi"
+        processor_name = "rahulbhalgat/wav2vec2-large-xlsr-hindi"
+    elif language == "Other":
+        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
+        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
+
+    processor = Wav2Vec2Processor.from_pretrained(processor_name, use_auth_token=False)
+    model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
+    return processor, model
 
 uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
 
@@ -50,11 +82,12 @@ if uploaded_file is not None:
     else:
         speech = speech_array
 
+    processor, model = load_asr_model(language)
     # Process the speech input
     inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
 
     # Transcription
-    with st.spinner("Transcribing... please wait ⏳"):
+    with st.spinner(f"Transcribing in {language}... please wait ⏳"):
         with torch.no_grad():
             logits = model(**inputs).logits
         predicted_ids = torch.argmax(logits, dim=-1)
