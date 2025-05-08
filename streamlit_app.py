@@ -44,8 +44,8 @@ def load_asr_model(language):
         model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-japanese"
         processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-japanese"
     elif language == "Hindi":
-        model_name = "rahulbhalgat/wav2vec2-large-xlsr-hindi"
-        processor_name = "rahulbhalgat/wav2vec2-large-xlsr-hindi"
+        model_name = "theainerd/Wav2Vec2-large-xlsr-hindi"
+        processor_name = "theainerd/Wav2Vec2-large-xlsr-hindi"
     elif language == "Other":
         model_name = "facebook/wav2vec2-large-xlsr-53_56k"
         processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
