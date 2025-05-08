@@ -11,11 +11,7 @@ import numpy as np
 import noisereduce as nr
 
 st.title("🎙️ AI Voice Recognition (Improved)")
-st.markdown(
-    """
-    This is an AI-powered voice recognition tool with basic noise reduction applied.
-    """
-)
+st.markdown("Due to limitations in the deployment environment, the punctuation applied to the transcription is a basic, rule-based segmentation and capitalization. It may not accurately reflect natural sentence breaks.")
 
 # Load Wav2Vec2 models
 @st.cache_resource
