@@ -58,6 +58,10 @@ uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
 
 if uploaded_file is not None:
     st.audio(uploaded_file)
+    language = st.selectbox(
+        "Select the language of the audio:",
+        ["English", "French", "German", "Spanish", "Chinese", "Russian", "Japanese", "Hindi", "Other"]
+    )
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
