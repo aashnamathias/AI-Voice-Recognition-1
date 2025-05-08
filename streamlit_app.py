@@ -34,7 +34,7 @@ if new_language != st.session_state["language"]:
     st.session_state["punctuated_text"] = None # Clear punctuated text
     st.rerun() # Force a re-run of the script
 
-uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"], key="file_uploader")
+uploaded_file = st.file_uploader("Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader") # Accept MP3
 
 if uploaded_file is not None:
     st.session_state["uploaded_file"] = uploaded_file
@@ -43,10 +43,18 @@ if uploaded_file is not None:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
     try:
-        audio, sampling_rate = sf.read(tmp_path)
-        speech_array = audio.astype("float32")
-        if len(speech_array.shape) > 1:
-            speech_array = speech_array.mean(axis=1)
+        if uploaded_file.type == "audio/mpeg":  # Check if it's an MP3
+            sound = AudioSegment.from_mp3(tmp_path)
+            sound = sound.set_frame_rate(16000)  # Ensure consistent sampling rate
+            sound = sound.set_channels(1)      # Ensure mono audio
+            raw_audio_data = np.array(sound.get_array_of_samples()).astype(np.float32) / (2**15 - 1) # Normalize
+            sampling_rate = sound.frame_rate
+            speech_array = raw_audio_data
+        else:  # It's a WAV file
+            audio, sampling_rate = sf.read(tmp_path)
+            speech_array = audio.astype("float32")
+            if len(speech_array.shape) > 1:
+                speech_array = speech_array.mean(axis=1)
 
         # Apply noise reduction
         reduced_noise = nr.reduce_noise(y=speech_array, sr=sampling_rate)
@@ -61,7 +69,7 @@ if uploaded_file is not None:
         resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)
         speech = resampler(torch.tensor(speech_array).unsqueeze(0)).squeeze().numpy()
     else:
-        speech = speech_array
+        speech = speech_arrayy
 
     # Load Wav2Vec2 models
     @st.cache_resource
