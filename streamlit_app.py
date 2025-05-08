@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Streamlit app for AI Voice Recognition (Improved)"""
+"""Streamlit app for AI Voice Recognition (with Punctuation)"""
 
 import streamlit as st
-from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
+from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC, pipeline
 import torch
 import torchaudio
 import tempfile
@@ -10,14 +10,15 @@ import soundfile as sf
 import numpy as np
 import noisereduce as nr
 
-st.title("🎙️ AI Voice Recognition (Improved)")
+st.title("🎙️ AI Voice Recognition (with Punctuation)")
 st.markdown(
     """
-    This is an AI-powered voice recognition tool with basic noise reduction applied.
+    AI-powered voice recognition with basic noise reduction and **intelligent punctuation**.
+    Please upload WAV files smaller than 500KB for best performance.
     """
 )
 
-# Load Wav2Vec2 models
+# Load Wav2Vec2 ASR model
 @st.cache_resource
 def load_asr_model():
     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h-lv60-self", use_auth_token=False)
@@ -25,6 +26,14 @@ def load_asr_model():
     return processor, model
 
 processor, model = load_asr_model()
+
+# Load punctuation restoration model
+@st.cache_resource
+def load_punctuation_model():
+    punctuation_pipeline = pipeline("token-classification", model="felflare/bert-restore-punctuation", device=0 if torch.cuda.is_available() else -1)
+    return punctuation_pipeline
+
+punctuation_restorer = load_punctuation_model()
 
 uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
 
@@ -39,7 +48,6 @@ if uploaded_file is not None:
         if len(speech_array.shape) > 1:
             speech_array = speech_array.mean(axis=1)
 
-        # Apply noise reduction
         reduced_noise = nr.reduce_noise(y=speech_array, sr=sampling_rate)
         speech_array = reduced_noise
 
@@ -47,17 +55,14 @@ if uploaded_file is not None:
         st.error(f"Error loading/processing audio file: {e}")
         st.stop()
 
-    # Resample to 16000 Hz if necessary
     if sampling_rate != 16000:
         resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)
         speech = resampler(torch.tensor(speech_array).unsqueeze(0)).squeeze().numpy()
     else:
         speech = speech_array
 
-    # Process the speech input
     inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
 
-    # Transcription
     with st.spinner("Transcribing... please wait ⏳"):
         with torch.no_grad():
             logits = model(**inputs).logits
@@ -68,35 +73,19 @@ if uploaded_file is not None:
     st.success(transcription)
     st.markdown(f"**🔢 Word Count:** {len(transcription.split())}")
 
-    st.markdown("### 📝 Transcription with Basic Punctuation (Word Limit):")
-    # Basic Punctuation (using the max_words approach from earlier)
-    def segment_and_punctuate(text, max_words=15):
-        words = text.split()
-        segments = []
-        current_segment = []
-        for word in words:
-            current_segment.append(word)
-            if len(current_segment) >= max_words:
-                segments.append(" ".join(current_segment) + ".")
-                current_segment = []
-        if current_segment:
-            segments.append(" ".join(current_segment) + ".")
-        return " ".join(segments)
+    with st.spinner("Adding punctuation... ✍️"):
+        # Apply punctuation
+        punctuated_output = punctuation_restorer(transcription)
 
-    def capitalize_first_letter(punctuated_text):
-        segments = punctuated_text.split(".")
-        capitalized_segments = []
-        for segment in segments:
-            stripped_segment = segment.strip()
-            if stripped_segment:
-                first_word = stripped_segment.split()[0]
-                rest_of_segment = " ".join(stripped_segment.split()[1:])
-                capitalized_segments.append(first_word[0].upper() + first_word[1:].lower() + (" " + rest_of_segment.lower() if rest_of_segment else ""))
+        # Reformat the output to be a single string
+        punctuated_text = ""
+        for item in punctuated_output:
+            punctuated_text += item['word']
+            if item['entity'] != 'O':
+                punctuated_text += item['entity'] + " "
             else:
-                capitalized_segments.append("")
-        return ". ".join(capitalized_segments).strip() + "." if capitalized_segments else ""
+                punctuated_text += " "
+        punctuated_text = punctuated_text.strip()
 
-    with st.spinner("Adding basic punctuation... ✍️"):
-        punctuated_text = segment_and_punctuate(transcription)
-        capitalized_text = capitalize_first_letter(punctuated_text)
-        st.info(capitalized_text)
+        st.markdown("### 📝 Transcription with Punctuation:")
+        st.info(punctuated_text)
