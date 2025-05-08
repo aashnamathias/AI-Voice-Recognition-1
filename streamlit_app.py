@@ -20,8 +20,8 @@ st.markdown(
 # Load Wav2Vec2 models
 @st.cache_resource
 def load_asr_model():
-    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h-lv60-self")
-    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h-lv60-self")
+    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-xlsr-53_56k")
+    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-xlsr-53_56k")
     return processor, model
 
 processor, model = load_asr_model()
