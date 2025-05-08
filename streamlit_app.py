@@ -9,6 +9,7 @@ import tempfile
 import soundfile as sf
 import numpy as np
 import noisereduce as nr
+from transformers import AutoTokenizer, AutoModelForTokenClassification
 
 st.title("🎙️ AI Voice Recognition (with Punctuation)")
 st.markdown(
@@ -30,8 +31,10 @@ processor, model = load_asr_model()
 # Load punctuation restoration model
 @st.cache_resource
 def load_punctuation_model():
-    punctuation_pipeline = pipeline("token-classification", model="felflare/bert-restore-punctuation", device=0 if torch.cuda.is_available() else -1)
-    return punctuation_pipeline
+    model_name = "oliverguhr/fullstop-punctuation-multilingual-base"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForTokenClassification.from_pretrained(model_name)
+    return tokenizer, model
 
 punctuation_restorer = load_punctuation_model()
 
@@ -74,18 +77,32 @@ if uploaded_file is not None:
     st.markdown(f"**🔢 Word Count:** {len(transcription.split())}")
 
     with st.spinner("Adding punctuation... ✍️"):
-        # Apply punctuation
-        punctuated_output = punctuation_restorer(transcription)
+    tokenizer, punctuation_model = load_punctuation_model()
+    inputs_for_punctuation = tokenizer(transcription.split(), is_split_into_words=True, return_tensors="pt", padding=True, truncation=True)
+    with torch.no_grad():
+        outputs = punctuation_model(**inputs_for_punctuation)
+    predictions = torch.argmax(outputs.logits, dim=2)
 
-        # Reformat the output to be a single string
-        punctuated_text = ""
-        for item in punctuated_output:
-            punctuated_text += item['word']
-            if item['entity'] != 'O':
-                punctuated_text += item['entity'] + " "
-            else:
-                punctuated_text += " "
-        punctuated_text = punctuated_text.strip()
+    punctuation_map = {
+        0: "",
+        1: ".",
+        2: ",",
+        3: "?",
+        4: "-",
+        5: ":"
+    }
 
-        st.markdown("### 📝 Transcription with Punctuation:")
-        st.info(punctuated_text)
+    predicted_punctuations = [punctuation_map.get(p.item(), "") for p in predictions[0][1:-1]]
+
+    punctuated_words = []
+    word_index = 0
+    for i, token in enumerate(transcription.split()):
+        punctuated_words.append(token)
+        if word_index < len(predicted_punctuations) and predicted_punctuations[word_index]:
+            punctuated_words[-1] += predicted_punctuations[word_index]
+        word_index += 1
+
+    punctuated_text = " ".join(punctuated_words).strip()
+
+    st.markdown("### 📝 Transcription with Punctuation:")
+    st.info(punctuated_text)
