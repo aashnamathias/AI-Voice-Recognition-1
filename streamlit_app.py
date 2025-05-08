@@ -9,6 +9,7 @@ import tempfile
 import soundfile as sf
 import numpy as np
 import noisereduce as nr
+from pydub import AudioSegment
 
 st.title("🎙️ AI Voice Recognition (English, French, Chinese, Hindi)")
 st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi. Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization.")
