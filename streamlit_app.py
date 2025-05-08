@@ -33,7 +33,7 @@ processor, model = load_asr_model()
 def load_punctuation_model():
     model_name = "oliverguhr/fullstop-punctuation-multilingual-base"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForTokenClassification.from_pretrained(model_name)
+    model = AutoModelForTokenClassification.from_pretrained(model_name, torch_dtype=torch.float16)
     return tokenizer, model
 
 punctuation_restorer = load_punctuation_model()
