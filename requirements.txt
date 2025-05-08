@@ -4,4 +4,4 @@ torch==2.2.2
 torchaudio==2.2.2
 soundfile
 numpy
-rpunct==1.0.2
+noisereduce
