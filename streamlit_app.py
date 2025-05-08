@@ -70,7 +70,7 @@ if uploaded_file is not None:
         resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)
         speech = resampler(torch.tensor(speech_array).unsqueeze(0)).squeeze().numpy()
     else:
-        speech = speech_arrayy
+        speech = speech_array
 
     # Load Wav2Vec2 models
     @st.cache_resource
