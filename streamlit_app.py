@@ -77,32 +77,32 @@ if uploaded_file is not None:
     st.markdown(f"**🔢 Word Count:** {len(transcription.split())}")
 
     with st.spinner("Adding punctuation... ✍️"):
-    tokenizer, punctuation_model = load_punctuation_model()
-    inputs_for_punctuation = tokenizer(transcription.split(), is_split_into_words=True, return_tensors="pt", padding=True, truncation=True)
-    with torch.no_grad():
-        outputs = punctuation_model(**inputs_for_punctuation)
-    predictions = torch.argmax(outputs.logits, dim=2)
+        tokenizer, punctuation_model = load_punctuation_model()
+        inputs_for_punctuation = tokenizer(transcription.split(), is_split_into_words=True, return_tensors="pt", padding=True, truncation=True)
+        with torch.no_grad():
+            outputs = punctuation_model(**inputs_for_punctuation)
+        predictions = torch.argmax(outputs.logits, dim=2)
 
-    punctuation_map = {
-        0: "",
-        1: ".",
-        2: ",",
-        3: "?",
-        4: "-",
-        5: ":"
-    }
+        punctuation_map = {
+            0: "",
+            1: ".",
+            2: ",",
+            3: "?",
+            4: "-",
+            5: ":"
+        }
 
-    predicted_punctuations = [punctuation_map.get(p.item(), "") for p in predictions[0][1:-1]]
+        predicted_punctuations = [punctuation_map.get(p.item(), "") for p in predictions[0][1:-1]]
 
-    punctuated_words = []
-    word_index = 0
-    for i, token in enumerate(transcription.split()):
-        punctuated_words.append(token)
-        if word_index < len(predicted_punctuations) and predicted_punctuations[word_index]:
-            punctuated_words[-1] += predicted_punctuations[word_index]
-        word_index += 1
+        punctuated_words = []
+        word_index = 0
+        for i, token in enumerate(transcription.split()):
+            punctuated_words.append(token)
+            if word_index < len(predicted_punctuations) and predicted_punctuations[word_index]:
+                punctuated_words[-1] += predicted_punctuations[word_index]
+            word_index += 1
 
-    punctuated_text = " ".join(punctuated_words).strip()
+        punctuated_text = " ".join(punctuated_words).strip()
 
-    st.markdown("### 📝 Transcription with Punctuation:")
-    st.info(punctuated_text)
+        st.markdown("### 📝 Transcription with Punctuation:")
+        st.info(punctuated_text)
