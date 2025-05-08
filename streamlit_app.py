@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Streamlit app for AI Voice Recognition (Multilingual with Basic Punctuation)"""
+"""Streamlit app for AI Voice Recognition (English, French, Chinese, Hindi)"""
 
 import streamlit as st
 from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
@@ -10,58 +10,35 @@ import soundfile as sf
 import numpy as np
 import noisereduce as nr
 
-st.title("🎙️ AI Voice Recognition (Multilingual)")
-st.markdown("This app supports multilingual voice recognition. Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization.")
+st.title("🎙️ AI Voice Recognition (English, French, Chinese, Hindi)")
+st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi.")
+
+# Initialize session state for language
+if "language" not in st.session_state:
+    st.session_state["language"] = "English"
 
 # Language selection
-language = st.selectbox(
+languages = ["English", "French", "Chinese", "Hindi"]
+new_language = st.selectbox(
     "Select the language of the audio:",
-    ["English", "French", "German", "Spanish", "Chinese", "Russian", "Japanese", "Hindi", "Other"]
+    languages,
+    key="language_selectbox",  # Unique key for the selectbox
+    index=languages.index(st.session_state["language"]) if st.session_state["language"] in languages else 0
 )
 
-# Load Wav2Vec2 models
-@st.cache_resource
-def load_asr_model(language):
-    model_name = "facebook/wav2vec2-large-960h-lv60-self" # Default English model
-    processor_name = "facebook/wav2vec2-large-960h-lv60-self"
+# Check if the language has changed
+if new_language != st.session_state["language"]:
+    st.session_state["language"] = new_language
+    st.session_state["uploaded_file"] = None  # Clear uploaded file
+    st.session_state["transcription"] = None # Clear transcription
+    st.session_state["punctuated_text"] = None # Clear punctuated text
+    st.rerun() # Force a re-run of the script
 
-    if language == "French":
-        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
-        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
-    elif language == "German":
-        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
-        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
-    elif language == "Spanish":
-        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
-        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
-    elif language == "Chinese":
-        model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
-        processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
-    elif language == "Russian":
-        model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-russian"
-        processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-russian"
-    elif language == "Japanese":
-        model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-japanese"
-        processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-japanese"
-    elif language == "Hindi":
-        model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
-        processor_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
-    elif language == "Other":
-        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
-        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
-
-    processor = Wav2Vec2Processor.from_pretrained(processor_name, use_auth_token=False)
-    model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
-    return processor, model
-
-uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
+uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"], key="file_uploader")
 
 if uploaded_file is not None:
+    st.session_state["uploaded_file"] = uploaded_file
     st.audio(uploaded_file)
-    language = st.selectbox(
-        "Select the language of the audio:",
-        ["English", "French", "German", "Spanish", "Chinese", "Russian", "Japanese", "Hindi", "Other"]
-    )
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
@@ -86,20 +63,41 @@ if uploaded_file is not None:
     else:
         speech = speech_array
 
-    processor, model = load_asr_model(language)
+    # Load Wav2Vec2 models
+    @st.cache_resource
+    def load_asr_model(language):
+        model_name = "facebook/wav2vec2-large-960h-lv60-self" # Default English model
+        processor_name = "facebook/wav2vec2-large-960h-lv60-self"
+
+        if language == "French":
+            model_name = "facebook/wav2vec2-large-xlsr-53_56k"
+            processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
+        elif language == "Chinese":
+            model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
+            processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
+        elif language == "Hindi":
+            model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
+            processor_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
+
+        processor = Wav2Vec2Processor.from_pretrained(processor_name, use_auth_token=False)
+        model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
+        return processor, model
+
+    processor, model = load_asr_model(st.session_state["language"])
     # Process the speech input
     inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
 
     # Transcription
-    with st.spinner(f"Transcribing in {language}... please wait ⏳"):
+    with st.spinner(f"Transcribing in {st.session_state['language']}... please wait ⏳"):
         with torch.no_grad():
             logits = model(**inputs).logits
         predicted_ids = torch.argmax(logits, dim=-1)
         transcription = processor.decode(predicted_ids[0])
+        st.session_state["transcription"] = transcription
 
     st.markdown("### ✏️ Raw Transcription:")
-    st.success(transcription)
-    st.markdown(f"**🔢 Word Count:** {len(transcription.split())}")
+    st.success(st.session_state["transcription"])
+    st.markdown(f"**🔢 Word Count:** {len(st.session_state['transcription'].split())}")
 
     st.markdown("### 📝 Transcription with Basic Punctuation (Word Limit):")
     # Basic Punctuation (using the max_words approach from earlier)
@@ -130,6 +128,11 @@ if uploaded_file is not None:
         return ". ".join(capitalized_segments).strip() + "." if capitalized_segments else ""
 
     with st.spinner("Adding basic punctuation... ✍️"):
-        punctuated_text = segment_and_punctuate(transcription)
-        capitalized_text = capitalize_first_letter(punctuated_text)
-        st.info(capitalized_text)
+        if st.session_state.get("transcription"):
+            punctuated_text = segment_and_punctuate(st.session_state["transcription"])
+            capitalized_text = capitalize_first_letter(punctuated_text)
+            st.info(capitalized_text)
+            st.session_state["punctuated_text"] = capitalized_text
+
+else:
+    st.markdown("Please upload a WAV file to begin.")
