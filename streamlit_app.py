@@ -31,7 +31,7 @@ processor, model = load_asr_model()
 # Load punctuation restoration model
 @st.cache_resource
 def load_punctuation_model():
-    model_name = "oliverguhr/fullstop-punctuation-multilingual-sonar-base"
+    model_name = "1-800-BAD-CODE/punct_cap_seg_47_language"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForTokenClassification.from_pretrained(model_name, torch_dtype=torch.float16)
     return tokenizer, model
