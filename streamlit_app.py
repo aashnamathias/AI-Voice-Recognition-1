@@ -40,6 +40,12 @@ if new_language != st.session_state["language"]:
     st.session_state["language"] = new_language
     st.rerun()
 
+# Add a reset button
+if st.button("Reset App"):
+    st.session_state.clear()
+    st.session_state["language"] = "English"  # Reset to default language
+    st.rerun()
+
 
 uploaded_file = st.file_uploader(
     "Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader"
