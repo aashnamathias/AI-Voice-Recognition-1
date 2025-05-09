@@ -94,29 +94,30 @@ if uploaded_file is not None:
 
     # Load Wav2Vec2 models
     def load_asr_model(language):
-        print(f"Loading model for language: {language}")
-        model_name = "facebook/wav2vec2-large-960h-lv60-self"  # Default English model
+        with st.spinner(f"Running asr model for {language}"):
+            print(f"Loading model for language: {language}")
+            model_name = "facebook/wav2vec2-large-960h-lv60-self"  # Default English model
 
-        if language == "French":
-            model_name = "facebook/wav2vec2-large-xlsr-53_56k"
-        elif language == "Chinese":
-            model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
-        elif language == "Hindi":
-            model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
+            if language == "French":
+                model_name = "facebook/wav2vec2-large-xlsr-53_56k"
+            elif language == "Chinese":
+                model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
+            elif language == "Hindi":
+                model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
 
-        try:
-            processor = Wav2Vec2Processor.from_pretrained(model_name)
-        except Exception as e:
-            st.error(f"Error loading processor: {e}")
-            return None, None  # Return None, None on error
+            try:
+                processor = Wav2Vec2Processor.from_pretrained(model_name)
+            except Exception as e:
+                st.error(f"Error loading processor: {e}")
+                return None, None  # Return None, None on error
 
-        try:
-            model = Wav2Vec2ForCTC.from_pretrained(model_name)
-        except Exception as e:
-            st.error(f"Error loading model: {e}")
-            return None, None  # Return None, None on error
+            try:
+                model = Wav2Vec2ForCTC.from_pretrained(model_name)
+            except Exception as e:
+                st.error(f"Error loading model: {e}")
+                return None, None  # Return None, None on error
 
-        return processor, model
+            return processor, model
 
     # Load model and processor
     try:
