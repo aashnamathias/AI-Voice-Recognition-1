@@ -91,6 +91,8 @@ if uploaded_file is not None:
         return processor, model
 
     processor, model = load_asr_model(st.session_state["language"])
+    st.write(f"Current language before loading model: {st.session_state['language']}")
+
     # Process the speech input
     inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
 
