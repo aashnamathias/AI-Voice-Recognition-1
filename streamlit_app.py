@@ -14,11 +14,9 @@ from pydub import AudioSegment
 st.title("🎙️ AI Voice Recognition (English, French, Chinese, Hindi)")
 st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi. Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization.")
 
-# Initialize session state
+# Initialize session state for language
 if "language" not in st.session_state:
     st.session_state["language"] = "English"
-if "clear_model_cache" not in st.session_state:
-    st.session_state["clear_model_cache"] = False
 
 # Language selection
 languages = ["English", "French", "Chinese", "Hindi"]
@@ -29,10 +27,16 @@ new_language = st.selectbox(
     index=languages.index(st.session_state["language"]) if st.session_state["language"] in languages else 0
 )
 
+# Check if the language has changed
 if new_language != st.session_state["language"]:
     st.session_state["language"] = new_language
-    st.session_state["clear_model_cache"] = True
-    st.rerun()
+    st.session_state["uploaded_file"] = None  # Clear uploaded file
+    st.session_state["transcription"] = None # Clear transcription
+    st.session_state["punctuated_text"] = None # Clear punctuated text
+    # Force clear the cached model when language changes
+    if "load_asr_model" in st.session_state:
+        del st.session_state["load_asr_model"]
+    st.rerun() # Force a re-run of the script
 
 uploaded_file = st.file_uploader("Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader") # Accept MP3
 
@@ -92,13 +96,7 @@ if uploaded_file is not None:
         model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
         return processor, model
 
-    if st.session_state.get("clear_model_cache"):
-        load_asr_model.clear()
-        st.session_state["clear_model_cache"] = False
-
     processor, model = load_asr_model(st.session_state["language"])
-    st.write(f"Current language before loading model: {st.session_state['language']}")
-
     # Process the speech input
     inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
 
