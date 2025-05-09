@@ -43,7 +43,7 @@ def load_asr_model(language):
         model_name = "facebook/wav2vec2-base-fr-400m"  # Smaller French model
         processor_name = "facebook/wav2vec2-base-fr-400m"
     elif language == "Chinese":
-        model_name = "jonatasgrosman/wav2vec2-xls-r-300m-chinese" # Smaller Chinese
+        model_name = "jonatasgrosman/wav2vec2-xls-r-300m-chinese"  # Smaller Chinese
         processor_name = "jonatasgrosman/wav2vec2-xls-r-300m-chinese"
     elif language == "Hindi":
         model_name = "vasista22/wav2vec2-indic-hindi"  # Smaller Hindi model
@@ -97,7 +97,7 @@ if uploaded_file is not None:
             logits = model(**inputs).logits
         predicted_ids = torch.argmax(logits, dim=-1)
         transcription = processor.decode(predicted_ids[0])
-        st.session_state["transcription"] = transcription]
+        st.session_state["transcription"] = transcription
 
     st.markdown("### ✏️ Raw Transcription:")
     st.success(st.session_state["transcription"])
