@@ -11,7 +11,7 @@ import numpy as np
 import noisereduce as nr
 
 st.title("🎙️ AI Voice Recognition (Multilingual)")
-st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi.  **Using smaller Wav2Vec2 models to reduce memory usage.  Accuracy may be lower than with larger models.** Punctuation is basic, rule-based segmentation and capitalization.")
+st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi. Punctuation is basic, rule-based segmentation and capitalization.")
 
 # Initialize session state for language
 if "language" not in st.session_state:
@@ -34,20 +34,21 @@ if new_language != st.session_state["language"]:
     st.session_state["punctuated_text"] = None
     st.rerun()
 
+@st.cache_resource(hash_funcs={"str": lambda x: x})
 def load_asr_model(language):
     print(f"Loading model for language: {language}")
-    model_name = "facebook/wav2vec2-base-960h"  # Default English model (smaller)
-    processor_name = "facebook/wav2vec2-base-960h"
+    model_name = "facebook/wav2vec2-base-960h"  # Default English model
+    processor_name = "facebook/wav2vec2-base-960h" #https://huggingface.co/facebook/wav2vec2-base-960h
 
     if language == "French":
-        model_name = "facebook/wav2vec2-base-fr-400m"  # Smaller French model
-        processor_name = "facebook/wav2vec2-base-fr-400m"
+        model_name = "facebook/wav2vec2-large-xlsr-53_56k"
+        processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
     elif language == "Chinese":
-        model_name = "jonatasgrosman/wav2vec2-xls-r-300m-chinese"  # Smaller Chinese
-        processor_name = "jonatasgrosman/wav2vec2-xls-r-300m-chinese"
+        model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
+        processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
     elif language == "Hindi":
-        model_name = "vasista22/wav2vec2-indic-hindi"  # Smaller Hindi model
-        processor_name = "vasista22/wav2vec2-indic-hindi"
+        model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
+        processor_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
 
     processor = Wav2Vec2Processor.from_pretrained(processor_name, use_auth_token=False)
     model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
