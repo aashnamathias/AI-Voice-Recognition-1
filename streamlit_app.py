@@ -1,6 +1,10 @@
+# -*- coding: utf-8 -*-
+"""Streamlit app for AI Voice Recognition (English, French, Chinese, Hindi)"""
+
 import streamlit as st
 from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
 import torch
+import torchaudio
 import tempfile
 import soundfile as sf
 import numpy as np
@@ -31,6 +35,8 @@ if new_language != st.session_state["language"]:
     st.session_state["punctuated_text"] = None
     st.rerun()
 
+uploaded_file = st.file_uploader("Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader") # Accept MP3
+
 def load_asr_model(language):
     model_name = "facebook/wav2vec2-large-960h-lv60-self"  # Default
     processor_name = "facebook/wav2vec2-large-960h-lv60-self"
@@ -54,12 +60,9 @@ if st.session_state["language"] not in st.session_state["models"]:
         processor, model = load_asr_model(st.session_state["language"])
         st.session_state["models"][st.session_state["language"]] = {"processor": processor, "model": model}
 
-if st.session_state["language"] in st.session_state["models"] and st.session_state.get("uploaded_file"):
-    model_data = st.session_state["models"][st.session_state["language"]]
-    processor = model_data["processor"]
-    model = model_data["model"]
-
-    uploaded_file = st.session_state["uploaded_file"]
+if uploaded_file is not None:
+    st.session_state["uploaded_file"] = uploaded_file
+    st.audio(uploaded_file)
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
@@ -90,51 +93,56 @@ if st.session_state["language"] in st.session_state["models"] and st.session_sta
     else:
         speech = speech_array
 
-    inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
+    if st.session_state["language"] in st.session_state["models"]:
+        model_data = st.session_state["models"][st.session_state["language"]]
+        processor = model_data["processor"]
+        model = model_data["model"]
 
-    with st.spinner(f"Transcribing in {st.session_state['language']}..."):
-        with torch.no_grad():
-            logits = model(**inputs).logits
-        predicted_ids = torch.argmax(logits, dim=-1)
-        transcription = processor.decode(predicted_ids[0])
-        st.session_state["transcription"] = transcription
+        inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
 
-    st.markdown("### ✏️ Raw Transcription:")
-    st.success(st.session_state["transcription"])
-    st.markdown(f"**🔢 Word Count:** {len(st.session_state['transcription'].split())}")
+        with st.spinner(f"Transcribing in {st.session_state['language']}..."):
+            with torch.no_grad():
+                logits = model(**inputs).logits
+            predicted_ids = torch.argmax(logits, dim=-1)
+            transcription = processor.decode(predicted_ids[0])
+            st.session_state["transcription"] = transcription
 
-    def segment_and_punctuate(text, max_words=15):
-        words = text.split()
-        segments = []
-        current_segment = []
-        for word in words:
-            current_segment.append(word)
-            if len(current_segment) >= max_words:
+        st.markdown("### ✏️ Raw Transcription:")
+        st.success(st.session_state["transcription"])
+        st.markdown(f"**🔢 Word Count:** {len(st.session_state['transcription'].split())}")
+
+        def segment_and_punctuate(text, max_words=15):
+            words = text.split()
+            segments = []
+            current_segment = []
+            for word in words:
+                current_segment.append(word)
+                if len(current_segment) >= max_words:
+                    segments.append(" ".join(current_segment) + ".")
+                    current_segment = []
+            if current_segment:
                 segments.append(" ".join(current_segment) + ".")
-                current_segment = []
-        if current_segment:
-            segments.append(" ".join(current_segment) + ".")
-        return " ".join(segments)
+            return " ".join(segments)
 
-    def capitalize_first_letter(punctuated_text):
-        segments = punctuated_text.split(".")
-        capitalized_segments = []
-        for segment in segments:
-            stripped_segment = segment.strip()
-            if stripped_segment:
-                first_word = stripped_segment.split()[0]
-                rest_of_segment = " ".join(stripped_segment.split()[1:])
-                capitalized_segments.append(first_word[0].upper() + first_word[1:].lower() + (" " + rest_of_segment.lower() if rest_of_segment else ""))
+        def capitalize_first_letter(punctuated_text):
+            segments = punctuated_text.split(".")
+            capitalized_segments = []
+            for segment in segments:
+                stripped_segment = segment.strip()
+                if stripped_segment:
+                    first_word = stripped_segment.split()[0]
+                    rest_of_segment = " ".join(stripped_segment.split()[1:])
+                    capitalized_segments.append(first_word[0].upper() + first_word[1:].lower() + (" " + rest_of_segment.lower() if rest_of_segment else ""))
             else:
                 capitalized_segments.append("")
-        return ". ".join(capitalized_segments).strip() + "." if capitalized_segments else ""
+            return ". ".join(capitalized_segments).strip() + "." if capitalized_segments else ""
 
-    with st.spinner("Adding basic punctuation... ✍️"):
-        if st.session_state.get("transcription"):
-            punctuated_text = segment_and_punctuate(st.session_state["transcription"])
-            capitalized_text = capitalize_first_letter(punctuated_text)
-            st.info(capitalized_text)
-            st.session_state["punctuated_text"] = capitalized_text
+        with st.spinner("Adding basic punctuation... ✍️"):
+            if st.session_state.get("transcription"):
+                punctuated_text = segment_and_punctuate(st.session_state["transcription"])
+                capitalized_text = capitalize_first_letter(punctuated_text)
+                st.info(capitalized_text)
+                st.session_state["punctuated_text"] = capitalized_text
 
 else:
-    st.markdown("Please upload a WAV or MP3 file and select a language.")
+    st.markdown("Please upload a WAV or MP3 file to begin.")
