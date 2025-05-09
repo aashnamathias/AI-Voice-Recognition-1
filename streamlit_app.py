@@ -91,7 +91,7 @@ if uploaded_file is not None:
     # Load Wav2Vec2 models
     @st.cache_resource(hash_funcs={str: lambda x: x})
     def load_asr_model(language):
-        print(f"Loading model for language: {language}")  # Keep the print statement for debugging
+        print(f"Loading model for language: {language}")
         model_name = (
             "facebook/wav2vec2-large-960h-lv60-self"  # Default English model
         )
@@ -163,12 +163,10 @@ if uploaded_file is not None:
                 capitalized_segments.append("")
         return ". ".join(capitalized_segments).strip() + "." if capitalized_segments else ""
 
-    with st.spinner("Adding basic punctuation... ✍️"):
-        if st.session_state.get("transcription"):
-            punctuated_text = segment_and_punctuate(st.session_state["transcription"])
-            capitalized_text = capitalize_first_letter(punctuated_text)
-            st.info(capitalized_text)
-            st.session_state["punctuated_text"] = capitalized_text
-
 else:
     st.markdown("Please upload a WAV file to begin.")
+# Add a reset button
+if st.button("Reset App"):
+    st.session_state.clear()
+    st.session_state["language"] = "English"  # Reset to default language
+    st.rerun()
