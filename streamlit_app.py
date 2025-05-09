@@ -33,9 +33,6 @@ if new_language != st.session_state["language"]:
     st.session_state["uploaded_file"] = None  # Clear uploaded file
     st.session_state["transcription"] = None # Clear transcription
     st.session_state["punctuated_text"] = None # Clear punctuated text
-    # Force clear the cached model by deleting the function from session state
-    if "load_asr_model" in st.session_state:
-        del st.session_state["load_asr_model"]
     st.rerun() # Force a re-run of the script
 
 uploaded_file = st.file_uploader("Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader") # Accept MP3
@@ -76,7 +73,7 @@ if uploaded_file is not None:
         speech = speech_array
 
     # Load Wav2Vec2 models
-    @st.cache_resource(hash_funcs={str: lambda x: x})
+    @st.cache_resource
     def load_asr_model(language):
         print(f"Loading model for language: {language}")
         model_name = "facebook/wav2vec2-large-960h-lv60-self" # Default English model
@@ -96,8 +93,9 @@ if uploaded_file is not None:
         model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
         return processor, model
 
-    st.write(f"Current language before loading model: {st.session_state['language']}")
     processor, model = load_asr_model(st.session_state["language"])
+    st.write(f"Processor ID: {id(processor)}")
+    st.write(f"Model ID: {id(model)}")
 
     # Process the speech input
     inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
