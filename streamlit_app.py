@@ -33,7 +33,7 @@ if new_language != st.session_state["language"]:
     st.session_state["uploaded_file"] = None  # Clear uploaded file
     st.session_state["transcription"] = None # Clear transcription
     st.session_state["punctuated_text"] = None # Clear punctuated text
-    # Force clear the cached model when language changes
+    # Force clear the cached model by deleting the function from session state
     if "load_asr_model" in st.session_state:
         del st.session_state["load_asr_model"]
     st.rerun() # Force a re-run of the script
@@ -96,7 +96,9 @@ if uploaded_file is not None:
         model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
         return processor, model
 
+    st.write(f"Current language before loading model: {st.session_state['language']}")
     processor, model = load_asr_model(st.session_state["language"])
+
     # Process the speech input
     inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
 
