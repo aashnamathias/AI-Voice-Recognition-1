@@ -14,23 +14,24 @@ from pydub import AudioSegment
 st.title("🎙️ AI Voice Recognition (English, French, Chinese, Hindi)")
 st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi. Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization.")
 
-# Initialize session state for language
+# Initialize session state
 if "language" not in st.session_state:
     st.session_state["language"] = "English"
+if "clear_model_cache" not in st.session_state:
+    st.session_state["clear_model_cache"] = False
 
 # Language selection
 languages = ["English", "French", "Chinese", "Hindi"]
 new_language = st.selectbox(
     "Select the language of the audio:",
     languages,
-    key="language_selectbox",  # Unique key for the selectbox
+    key="language_selectbox",
     index=languages.index(st.session_state["language"]) if st.session_state["language"] in languages else 0
 )
 
 if new_language != st.session_state["language"]:
     st.session_state["language"] = new_language
-    st.session_state.clear()  # Clear all session state
-    st.session_state["language"] = new_language # Re-initialize the language
+    st.session_state["clear_model_cache"] = True
     st.rerun()
 
 uploaded_file = st.file_uploader("Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader") # Accept MP3
@@ -71,8 +72,9 @@ if uploaded_file is not None:
         speech = speech_array
 
     # Load Wav2Vec2 models
-    @st.cache_resource
+    @st.cache_resource(hash_funcs={str: lambda x: x})
     def load_asr_model(language):
+        print(f"Loading model for language: {language}")
         model_name = "facebook/wav2vec2-large-960h-lv60-self" # Default English model
         processor_name = "facebook/wav2vec2-large-960h-lv60-self"
 
@@ -90,7 +92,10 @@ if uploaded_file is not None:
         model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
         return processor, model
 
-    load_asr_model.clear()
+    if st.session_state.get("clear_model_cache"):
+        load_asr_model.clear()
+        st.session_state["clear_model_cache"] = False
+
     processor, model = load_asr_model(st.session_state["language"])
     st.write(f"Current language before loading model: {st.session_state['language']}")
 
