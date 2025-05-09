@@ -11,6 +11,9 @@ import numpy as np
 import noisereduce as nr
 from pydub import AudioSegment
 import gc
+import time  # Import the time module
+import requests # Import the requests module
+
 
 st.title("🎙️ AI Voice Recognition (English, French, Chinese, Hindi)")
 st.markdown(
@@ -110,6 +113,9 @@ if uploaded_file is not None:
 
     # Load Wav2Vec2 models
     def load_asr_model(language):
+        max_retries = 5  # Maximum number of retries
+        retry_delay = 1  # Initial delay in seconds
+
         with st.spinner(f"Running asr model for {language}"):
             print(f"Loading model for language: {language}")
             model_name = "facebook/wav2vec2-large-960h-lv60-self"  # Default English model
@@ -121,25 +127,27 @@ if uploaded_file is not None:
             elif language == "Hindi":
                 model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
 
-            print(f"Attempting to load processor from: {model_name}")
-            try:
-                processor = Wav2Vec2Processor.from_pretrained(model_name)
-                print(f"Processor loaded successfully from: {model_name}")
-            except Exception as e:
-                st.error(f"Error loading processor: {e}")
-                print(f"Error loading processor: {e}")
-                return None, None  # Return None, None on error
+            for attempt in range(max_retries):
+                try:
+                    processor = Wav2Vec2Processor.from_pretrained(model_name)
+                    model = Wav2Vec2ForCTC.from_pretrained(model_name)
+                    return processor, model  # Return the model and processor if successful
+                except Exception as e:
+                    if "HTTP Error 429" in str(e):
+                        print(
+                            f"Hugging Face rate limit hit. Retrying in {retry_delay} seconds (Attempt {attempt + 1}/{max_retries})"
+                        )
+                        time.sleep(retry_delay)  # Wait before retrying
+                        retry_delay *= 2  # Exponential backoff (double the delay)
+                    else:
+                        st.error(f"Error loading model: {e}")
+                        print(f"Error loading model: {e}")
+                        return None, None  # Return None, None on other errors
 
-            print(f"Attempting to load model from: {model_name}")
-            try:
-                model = Wav2Vec2ForCTC.from_pretrained(model_name)
-                print(f"Model loaded successfully from: {model_name}")
-            except Exception as e:
-                st.error(f"Error loading model: {e}")
-                print(f"Error loading model: {e}")
-                return None, None  # Return None, None on error
-
-            return processor, model
+            st.error(
+                "Failed to load the model after multiple retries due to rate limiting.  Please try again later."
+            )
+            return None, None  # Return None, None if all retries fail
 
     # Load model and processor
     if st.session_state.get("processor") is None or st.session_state.get("model") is None or st.session_state["language"] != st.session_state.get("model_language", None):
@@ -149,8 +157,12 @@ if uploaded_file is not None:
             if processor is not None and model is not None:
                 st.session_state["processor"] = processor
                 st.session_state["model"] = model
-                st.session_state["model_language"] = st.session_state["language"]  # store the language
-                print(f"Model and processor loaded into session state for language: {st.session_state['language']}")
+                st.session_state["model_language"] = st.session_state[
+                    "language"
+                ]  # store the language
+                print(
+                    f"Model and processor loaded into session state for language: {st.session_state['language']}"
+                )
             else:
                 st.error(
                     "Failed to load the model or processor. Please try again with a different audio file or language."
@@ -235,3 +247,4 @@ if uploaded_file is not None:
 
 else:
     st.markdown("Please upload a WAV or MP3 file to begin.")
+
