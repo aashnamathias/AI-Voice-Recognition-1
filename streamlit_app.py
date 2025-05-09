@@ -36,12 +36,8 @@ new_language = st.selectbox(
 
 # Check if the language has changed
 if new_language != st.session_state["language"]:
+    st.session_state.clear()
     st.session_state["language"] = new_language
-    # Clear previous model and processor from session state
-    if "processor" in st.session_state:
-        del st.session_state["processor"]
-    if "model" in st.session_state:
-        del st.session_state["model"]
     st.rerun()
 
 # Add a reset button
@@ -108,29 +104,46 @@ if uploaded_file is not None:
         elif language == "Hindi":
             model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
 
-        processor = Wav2Vec2Processor.from_pretrained(model_name)
-        model = Wav2Vec2ForCTC.from_pretrained(model_name)
+        try:
+            processor = Wav2Vec2Processor.from_pretrained(model_name)
+        except Exception as e:
+            st.error(f"Error loading processor: {e}")
+            return None, None  # Return None, None on error
+
+        try:
+            model = Wav2Vec2ForCTC.from_pretrained(model_name)
+        except Exception as e:
+            st.error(f"Error loading model: {e}")
+            return None, None  # Return None, None on error
+
         return processor, model
 
     # Load model and processor
-    if "processor" not in st.session_state or "model" not in st.session_state:
+    try:
         processor, model = load_asr_model(st.session_state["language"])
-        st.session_state["processor"] = processor
-        st.session_state["model"] = model
-    else:
-        processor = st.session_state["processor"]
-        model = st.session_state["model"]
+        if processor is None or model is None:
+            st.error(
+                "Failed to load the model or processor. Please try again with a different audio file or language."
+            )
+            st.stop()
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
+        st.stop()
 
     # Process the speech input
     inputs = processor(speech, sampling_rate=16000, return_tensors="pt", padding=True)
 
     # Transcription
     with st.spinner(f"Transcribing in {st.session_state['language']}... please wait ⏳"):
-        with torch.no_grad():
-            logits = model(**inputs).logits
-        predicted_ids = torch.argmax(logits, dim=-1)
-        transcription = processor.decode(predicted_ids[0])
-        st.session_state["transcription"] = transcription
+        try:
+            with torch.no_grad():
+                logits = model(**inputs).logits
+            predicted_ids = torch.argmax(logits, dim=-1)
+            transcription = processor.decode(predicted_ids[0])
+            st.session_state["transcription"] = transcription
+        except Exception as e:
+            st.error(f"Error during transcription: {e}")
+            st.stop()
 
     st.markdown("### ✏️ Raw Transcription:")
     st.success(st.session_state["transcription"])
