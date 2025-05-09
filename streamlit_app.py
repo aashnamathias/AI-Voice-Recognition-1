@@ -64,7 +64,7 @@ if uploaded_file is not None:
         speech = speech_array
 
     # Load Wav2Vec2 models
-    @st.cache_resource(hash_funcs={str: lambda x: x})
+    @st.cache_resource(hash_funcs={str: lambda x: x}, key=lambda language: f"asr_model_{language}")
     def load_asr_model(language):
         model_name = "facebook/wav2vec2-large-960h-lv60-self" # Default English model
         processor_name = "facebook/wav2vec2-large-960h-lv60-self"
