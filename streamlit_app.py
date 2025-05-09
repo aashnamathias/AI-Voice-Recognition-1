@@ -29,6 +29,8 @@ new_language = st.selectbox(
 
 # Check if the language has changed
 if new_language != st.session_state["language"]:
+    if st.session_state["language"] in st.session_state["models"]:
+        del st.session_state["models"][st.session_state["language"]]
     st.session_state["language"] = new_language
     st.session_state["uploaded_file"] = None
     st.session_state["transcription"] = None
