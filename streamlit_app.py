@@ -31,7 +31,6 @@ if new_language != st.session_state["language"]:
     st.session_state["language"] = new_language
     st.session_state.clear()  # Clear all session state
     st.session_state["language"] = new_language # Re-initialize the language
-    load_asr_model.clear()
     st.rerun()
 
 uploaded_file = st.file_uploader("Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader") # Accept MP3
@@ -91,6 +90,7 @@ if uploaded_file is not None:
         model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
         return processor, model
 
+    load_asr_model.clear()
     processor, model = load_asr_model(st.session_state["language"])
     st.write(f"Current language before loading model: {st.session_state['language']}")
 
