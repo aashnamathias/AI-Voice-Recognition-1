@@ -27,13 +27,11 @@ new_language = st.selectbox(
     index=languages.index(st.session_state["language"]) if st.session_state["language"] in languages else 0
 )
 
-# Check if the language has changed
 if new_language != st.session_state["language"]:
     st.session_state["language"] = new_language
-    st.session_state["uploaded_file"] = None  # Clear uploaded file
-    st.session_state["transcription"] = None # Clear transcription
-    st.session_state["punctuated_text"] = None # Clear punctuated text
-    st.rerun() # Force a re-run of the script
+    st.session_state.clear()  # Clear all session state
+    st.session_state["language"] = new_language # Re-initialize the language
+    st.rerun()
 
 uploaded_file = st.file_uploader("Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader") # Accept MP3
 
@@ -73,7 +71,7 @@ if uploaded_file is not None:
         speech = speech_array
 
     # Load Wav2Vec2 models
-    @st.cache_resource
+    @st.cache_resource(hash_funcs={str: lambda x: x})
     def load_asr_model(language):
         model_name = "facebook/wav2vec2-large-960h-lv60-self" # Default English model
         processor_name = "facebook/wav2vec2-large-960h-lv60-self"
