@@ -111,7 +111,40 @@ if uploaded_file is not None:
         st.success(st.session_state["transcription"])
         st.markdown(f"**🔢 Word Count:** {len(st.session_state['transcription'].split())}")
 
-        # ... (rest of your punctuation code) ...
-
+        st.markdown("### 📝 Transcription with Basic Punctuation (Word Limit):")
+        # Basic Punctuation (using the max_words approach from earlier)
+        def segment_and_punctuate(text, max_words=15):
+            words = text.split()
+            segments = []
+            current_segment = []
+            for word in words:
+                current_segment.append(word)
+                if len(current_segment) >= max_words:
+                    segments.append(" ".join(current_segment) + ".")
+                    current_segment = []
+            if current_segment:
+                segments.append(" ".join(current_segment) + ".")
+            return " ".join(segments)
+    
+        def capitalize_first_letter(punctuated_text):
+            segments = punctuated_text.split(".")
+            capitalized_segments = []
+            for segment in segments:
+                stripped_segment = segment.strip()
+                if stripped_segment:
+                    first_word = stripped_segment.split()[0]
+                    rest_of_segment = " ".join(stripped_segment.split()[1:])
+                    capitalized_segments.append(first_word[0].upper() + first_word[1:].lower() + (" " + rest_of_segment.lower() if rest_of_segment else ""))
+                else:
+                    capitalized_segments.append("")
+            return ". ".join(capitalized_segments).strip() + "." if capitalized_segments else ""
+    
+        with st.spinner("Adding basic punctuation... ✍️"):
+            if st.session_state.get("transcription"):
+                punctuated_text = segment_and_punctuate(st.session_state["transcription"])
+                capitalized_text = capitalize_first_letter(punctuated_text)
+                st.info(capitalized_text)
+                st.session_state["punctuated_text"] = capitalized_text
+    
 else:
     st.markdown("Please upload a WAV file to begin.")
