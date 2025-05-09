@@ -13,8 +13,9 @@ from pydub import AudioSegment
 import gc
 
 st.title("🎙️ AI Voice Recognition (English, French, Chinese, Hindi)")
+st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi.")
 st.markdown(
-    "This app supports voice recognition for English, French, Chinese, and Hindi. Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization."
+    "Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization."
 )
 
 # Initialize session state for language
@@ -35,13 +36,9 @@ new_language = st.selectbox(
 
 # Check if the language has changed
 if new_language != st.session_state["language"]:
-    st.session_state.clear()  # Clear all session state
-    st.session_state["language"] = new_language  # re-initialize
-    st.rerun()
     st.session_state.clear()
     st.session_state["language"] = new_language
-    st.rerun()  # Force a re-run of the script, twice
-
+    st.rerun()
 
 
 uploaded_file = st.file_uploader(
@@ -61,7 +58,8 @@ if uploaded_file is not None:
             sound = sound.set_frame_rate(16000)  # Ensure consistent sampling rate
             sound = sound.set_channels(1)  # Ensure mono audio
             raw_audio_data = (
-                np.array(sound.get_array_of_samples()).astype(np.float32()) / (2**15 - 1)
+                np.array(sound.get_array_of_samples()).astype(np.float32())
+                / (2**15 - 1)
             )  # Normalize
             sampling_rate = sound.frame_rate
             speech_array = raw_audio_data
@@ -92,27 +90,17 @@ if uploaded_file is not None:
     @st.cache_resource(hash_funcs={str: lambda x: x})
     def load_asr_model(language):
         print(f"Loading model for language: {language}")
-        model_name = (
-            "facebook/wav2vec2-large-960h-lv60-self"  # Default English model
-        )
-        processor_name = "facebook/wav2vec2-large-960h-lv60-self"
+        model_name = "facebook/wav2vec2-large-960h-lv60-self"  # Default English model
 
         if language == "French":
             model_name = "facebook/wav2vec2-large-xlsr-53_56k"
-            processor_name = "facebook/wav2vec2-large-xlsr-53_56k"
         elif language == "Chinese":
             model_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
-            processor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
         elif language == "Hindi":
             model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
-            processor_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
 
-        processor = Wav2Vec2Processor.from_pretrained(
-            processor_name, use_auth_token=False
-        )
-        model = Wav2Vec2ForCTC.from_pretrained(
-            model_name, use_auth_token=False
-        )
+        processor = Wav2Vec2Processor.from_pretrained(model_name)
+        model = Wav2Vec2ForCTC.from_pretrained(model_name)
         return processor, model
 
     processor, model = load_asr_model(st.session_state["language"])
@@ -163,10 +151,12 @@ if uploaded_file is not None:
                 capitalized_segments.append("")
         return ". ".join(capitalized_segments).strip() + "." if capitalized_segments else ""
 
+    with st.spinner("Adding basic punctuation... ✍️"):
+        if st.session_state.get("transcription"):
+            punctuated_text = segment_and_punctuate(st.session_state["transcription"])
+            capitalized_text = capitalize_first_letter(punctuated_text)
+            st.info(capitalized_text)
+            st.session_state["punctuated_text"] = capitalized_text
+
 else:
-    st.markdown("Please upload a WAV file to begin.")
-# Add a reset button
-if st.button("Reset App"):
-    st.session_state.clear()
-    st.session_state["language"] = "English"  # Reset to default language
-    st.rerun()
+    st.markdown("Please upload a WAV or MP3 file to begin.")
