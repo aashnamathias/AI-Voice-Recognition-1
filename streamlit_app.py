@@ -9,14 +9,18 @@ import tempfile
 import soundfile as sf
 import numpy as np
 import noisereduce as nr
+from pydub import AudioSegment
+import gc
 
 st.title("🎙️ AI Voice Recognition (English, French, Chinese, Hindi)")
-st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi.")
-st.markdown("This app supports voice recognition for English, French, Chinese, and Hindi. Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization.")
+st.markdown(
+    "This app supports voice recognition for English, French, Chinese, and Hindi. Due to resource limitations, the punctuation applied is a basic, rule-based segmentation and capitalization."
+)
 
 # Initialize session state for language
 if "language" not in st.session_state:
     st.session_state["language"] = "English"
+
 
 # Language selection
 languages = ["English", "French", "Chinese", "Hindi"]
@@ -24,18 +28,31 @@ new_language = st.selectbox(
     "Select the language of the audio:",
     languages,
     key="language_selectbox",  # Unique key for the selectbox
-    index=languages.index(st.session_state["language"]) if st.session_state["language"] in languages else 0
+    index=languages.index(st.session_state["language"])
+    if st.session_state["language"] in languages
+    else 0,
 )
 
 # Check if the language has changed
 if new_language != st.session_state["language"]:
+    st.session_state.clear()  # Clear all session state
+    st.session_state["language"] = new_language  # re-initialize
+    st.rerun()
+    st.session_state.clear()
     st.session_state["language"] = new_language
-    st.session_state["uploaded_file"] = None  # Clear uploaded file
-    st.session_state["transcription"] = None # Clear transcription
-    st.session_state["punctuated_text"] = None # Clear punctuated text
-    st.rerun() # Force a re-run of the script
+    st.rerun()  # Force a re-run of the script, twice
 
-uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"], key="file_uploader")
+# Add a reset button
+if st.button("Reset App"):
+    st.session_state.clear()
+    st.session_state["language"] = "English"  # Reset to default language
+    st.rerun()
+
+
+uploaded_file = st.file_uploader(
+    "Upload a WAV or MP3 file", type=["wav", "mp3"], key="file_uploader"
+)  # Accept MP3
+
 
 if uploaded_file is not None:
     st.session_state["uploaded_file"] = uploaded_file
@@ -44,10 +61,20 @@ if uploaded_file is not None:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
     try:
-        audio, sampling_rate = sf.read(tmp_path)
-        speech_array = audio.astype("float32")
-        if len(speech_array.shape) > 1:
-            speech_array = speech_array.mean(axis=1)
+        if uploaded_file.type == "audio/mpeg":  # Check if it's an MP3
+            sound = AudioSegment.from_mp3(tmp_path)
+            sound = sound.set_frame_rate(16000)  # Ensure consistent sampling rate
+            sound = sound.set_channels(1)  # Ensure mono audio
+            raw_audio_data = (
+                np.array(sound.get_array_of_samples()).astype(np.float32()) / (2**15 - 1)
+            )  # Normalize
+            sampling_rate = sound.frame_rate
+            speech_array = raw_audio_data
+        else:  # It's a WAV file
+            audio, sampling_rate = sf.read(tmp_path)
+            speech_array = audio.astype("float32")
+            if len(speech_array.shape) > 1:
+                speech_array = speech_array.mean(axis=1)
 
         # Apply noise reduction
         reduced_noise = nr.reduce_noise(y=speech_array, sr=sampling_rate)
@@ -59,15 +86,19 @@ if uploaded_file is not None:
 
     # Resample to 16000 Hz if necessary
     if sampling_rate != 16000:
-        resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)
+        resampler = torchaudio.transforms.Resample(
+            orig_freq=sampling_rate, new_freq=16000
+        )
         speech = resampler(torch.tensor(speech_array).unsqueeze(0)).squeeze().numpy()
     else:
         speech = speech_array
 
     # Load Wav2Vec2 models
-    @st.cache_resource
+    @st.cache_resource(hash_funcs={str: lambda x: x})
     def load_asr_model(language):
-        model_name = "facebook/wav2vec2-large-960h-lv60-self" # Default English model
+        model_name = (
+            "facebook/wav2vec2-large-960h-lv60-self"  # Default English model
+        )
         processor_name = "facebook/wav2vec2-large-960h-lv60-self"
 
         if language == "French":
@@ -80,8 +111,12 @@ if uploaded_file is not None:
             model_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
             processor_name = "shiwangi27/wave2vec2-large-xlsr-hindi"
 
-        processor = Wav2Vec2Processor.from_pretrained(processor_name, use_auth_token=False)
-        model = Wav2Vec2ForCTC.from_pretrained(model_name, use_auth_token=False)
+        processor = Wav2Vec2Processor.from_pretrained(
+            processor_name, use_auth_token=False
+        )
+        model = Wav2Vec2ForCTC.from_pretrained(
+            model_name, use_auth_token=False
+        )
         return processor, model
 
     processor, model = load_asr_model(st.session_state["language"])
@@ -123,7 +158,11 @@ if uploaded_file is not None:
             if stripped_segment:
                 first_word = stripped_segment.split()[0]
                 rest_of_segment = " ".join(stripped_segment.split()[1:])
-                capitalized_segments.append(first_word[0].upper() + first_word[1:].lower() + (" " + rest_of_segment.lower() if rest_of_segment else ""))
+                capitalized_segments.append(
+                    first_word[0].upper()
+                    + first_word[1:].lower()
+                    + (" " + rest_of_segment.lower() if rest_of_segment else "")
+                )
             else:
                 capitalized_segments.append("")
         return ". ".join(capitalized_segments).strip() + "." if capitalized_segments else ""
